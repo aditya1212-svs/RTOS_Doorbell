@@ -1,6 +1,8 @@
-import { useEffect, useMemo, useState } from 'react'
-import { apiBaseUrl, fetchSummary, streamUrl } from './api/client'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { apiBaseUrl, fetchSummary } from './api/client'
 import { createSocket } from './websocket/socket'
+import { AudioService } from './services/audioService'
+import { WebRtcReceiver } from './services/webrtcService'
 
 function App() {
   const [deviceId, setDeviceId] = useState('esp32-doorbell-01')
@@ -12,7 +14,11 @@ function App() {
   const [summary, setSummary] = useState(null)
   const [summaryError, setSummaryError] = useState('')
   const [streamConnected, setStreamConnected] = useState(false)
-  const liveUrl = useMemo(() => streamUrl(deviceId), [deviceId])
+  const [audioStatus, setAudioStatus] = useState('disconnected')
+  const [videoStatus, setVideoStatus] = useState('disconnected')
+  const audio = useMemo(() => new AudioService(), [])
+  const video = useMemo(() => new WebRtcReceiver(), [])
+  const videoElement = useRef(null)
 
   useEffect(() => createSocket((kind, raw) => {
     let body
@@ -22,6 +28,25 @@ function App() {
     else setDigests(items => [item, ...items].slice(0, 10))
     setActivity(items => [{ ...item, kind: 'WebSocket', request: `/topic/${kind}`, result: body?.type || 'digest' }, ...items].slice(0, 100))
   }, setSocketStatus), [])
+  useEffect(() => () => { audio.stop(); video.stop() }, [audio, video])
+
+  async function toggleAudio() {
+    if (audioStatus === 'connected') {
+      audio.stop()
+      setAudioStatus('disconnected')
+      return
+    }
+    try { await audio.start(deviceId, setAudioStatus) }
+    catch (error) { setAudioStatus(`error: ${error.message}`) }
+  }
+  async function connectVideo() {
+    try {
+      await video.start(deviceId, videoElement.current, status => {
+        setVideoStatus(status)
+        if (status === 'connected') setStreamConnected(true)
+      })
+    } catch (error) { setVideoStatus(`error: ${error.message}`) }
+  }
 
   async function getSummary() {
     setSummaryError('')
@@ -54,16 +79,22 @@ function App() {
       <div className="column">
         <Panel title="Live Camera" accent="blue">
           <label>Device ID<input value={deviceId} onChange={e => { setDeviceId(e.target.value); setStreamConnected(false) }} /></label>
-          <div className="stream-box">{streamConnected ? <img src={liveUrl} alt="Live doorbell stream" onError={() => setStreamConnected(false)} /> : <span>Waiting for stream connection...</span>}</div>
-          <button onClick={() => setStreamConnected(true)} className="primary">Connect Stream</button>
-          <button onClick={() => setStreamConnected(false)} className="secondary">Disconnect</button>
-          <small>Frames must be supplied by the separate ESP32 simulator or physical device.</small>
+          <div className="stream-box"><video ref={videoElement} autoPlay playsInline style={{ display: streamConnected ? 'block' : 'none' }} />{!streamConnected && <span>Waiting for WebRTC connection...</span>}</div>
+          <Status label="WebRTC video" status={videoStatus} />
+          <button onClick={connectVideo} className="primary">Connect WebRTC Video</button>
+          <button onClick={() => { video.stop(); setStreamConnected(false); setVideoStatus('disconnected') }} className="secondary">Disconnect</button>
+          <small>Video is published by the separate ESP32 simulator through the backend WebRTC signaling relay.</small>
         </Panel>
         <Panel title="Daily Summary">
           <div className="inline"><input type="date" value={summaryDate} onChange={e => setSummaryDate(e.target.value)} /><button onClick={getSummary} className="primary">Fetch Summary</button></div>
           {summaryError && <p className="error">{summaryError}</p>}
           {summary && <div className="summary"><h3>{summary.date || summaryDate}</h3><p>{summary.summary}</p><details><summary>Raw API response</summary><pre>{JSON.stringify(summary, null, 2)}</pre></details></div>}
           {!summary && !summaryError && <Empty text="No summary loaded" />}
+        </Panel>
+        <Panel title="Two-way Audio" accent="blue">
+          <Status label="Audio WebSocket" status={audioStatus} />
+          <button onClick={toggleAudio} className="primary">{audioStatus === 'connected' ? 'Stop Microphone' : 'Start Two-way Audio'}</button>
+          <small>Open the ESP32 simulator and this client with the same device ID.</small>
         </Panel>
       </div>
     </section>
