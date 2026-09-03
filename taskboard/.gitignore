@@ -1,0 +1,2 @@
+# persisted task data (shared between agents on the same machine)
+data/

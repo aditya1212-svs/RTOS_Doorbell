@@ -5,6 +5,8 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.*;
 import java.time.format.DateTimeParseException;
 import java.util.NoSuchElementException;
+import com.aditya.rtos_doorbell.service.FaceDetectionException;
+import com.aditya.rtos_doorbell.service.FaceRecognitionException;
 
 @RestControllerAdvice
 public class ApiExceptionHandler {
@@ -16,5 +18,14 @@ public class ApiExceptionHandler {
     @ExceptionHandler(NoSuchElementException.class)
     ResponseEntity<String> notFound(NoSuchElementException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ex.getMessage());
+    }
+    @ExceptionHandler(FaceDetectionException.class)
+    ResponseEntity<String> detectionFailure(FaceDetectionException ex) {
+        return ResponseEntity.status(ex.getStatus()).body(ex.getMessage());
+    }
+
+    @ExceptionHandler(FaceRecognitionException.class)
+    ResponseEntity<String> recognitionFailure(FaceRecognitionException ex) {
+        return ResponseEntity.status(ex.getStatus()).body(ex.getMessage());
     }
 }

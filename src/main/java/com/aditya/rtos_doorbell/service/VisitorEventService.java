@@ -1,11 +1,15 @@
 package com.aditya.rtos_doorbell.service;
 
 import com.aditya.rtos_doorbell.dto.DeviceEventRequest;
+import com.aditya.rtos_doorbell.dto.VisitorEventResponse;
 import com.aditya.rtos_doorbell.entity.*;
 import com.aditya.rtos_doorbell.repository.VisitorEventRepository;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import java.time.*;
+import java.util.List;
 
 @Service
 public class VisitorEventService {
@@ -22,18 +26,19 @@ public class VisitorEventService {
         if (request.type() == EventType.RING) recognitionService.markPending(event);
         return event;
     }
+
+    @Transactional(readOnly = true)
+    public List<VisitorEventResponse> list(int limit) {
+        int pageSize = Math.min(Math.max(limit, 1), 100);
+        return repository.findAllByOrderByTimestampDesc(PageRequest.of(0, pageSize)).stream()
+                .map(event -> new VisitorEventResponse(event.getId(), event.getTimestamp(), event.getDeviceId(),
+                        event.getType(), event.getRecognizedName(), event.isAuthorized(), event.getFrameUrl()))
+                .toList();
+    }
     public void recognize(VisitorEvent event, byte[] frame) {
         recognitionService.complete(event, frame);
     }
     public void notifyRecognition(VisitorEvent event) {
-        if (event.getType() == EventType.RECOGNIZED) {
-            messaging.convertAndSend("/topic/notify",
-                    new com.aditya.rtos_doorbell.dto.Notification("VISITOR_RECOGNIZED",
-                            event.getRecognizedName() + " is at the door"));
-        } else if (event.getType() == EventType.UNKNOWN) {
-            messaging.convertAndSend("/topic/notify",
-                    new com.aditya.rtos_doorbell.dto.Notification("VISITOR_UNKNOWN",
-                            "Unrecognized visitor at the door"));
-        }
+        recognitionService.notifyCompleted(event);
     }
 }

@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TaskBoard — Agent Sync</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header>
+    <h1>📋 TaskBoard</h1>
+    <p class="subtitle">Shared task board for multi-agent sync · <code>localhost:8081</code></p>
+    <nav class="tabs">
+      <button id="tabTasksBtn" class="tab-btn active" data-tab="tasks">🗂 Tasks</button>
+      <button id="tabChatBtn" class="tab-btn" data-tab="chat">💬 Chat</button>
+    </nav>
+  </header>
+
+  <div class="agent-box global">
+    <label for="fAgent">You are agent:</label>
+    <input id="fAgent" type="text" value="web-ui" autocomplete="off" />
+    <span class="hint">sent as <code>X-Agent</code> so the board and chat know who you are</span>
+  </div>
+
+  <section id="panel-tasks" class="tab-panel">
+    <div class="create-form">
+      <h2>Create a task</h2>
+      <form id="createForm">
+        <div class="row">
+          <input id="fTitle" type="text" placeholder="Task title *" required autocomplete="off" />
+          <input id="fAssignee" type="text" placeholder="Assignee (agent id)" autocomplete="off" />
+          <select id="fStatus">
+            <option value="pending">pending</option>
+            <option value="in_progress">in_progress</option>
+            <option value="blocked">blocked</option>
+            <option value="completed">completed</option>
+          </select>
+        </div>
+        <div class="row">
+          <input id="fDesc" type="text" placeholder="Description" autocomplete="off" />
+          <input id="fDepends" type="text" placeholder="Depends on (comma-separated task ids)" autocomplete="off" />
+          <button type="submit">➕ Create</button>
+        </div>
+      </form>
+    </div>
+
+    <section class="summary" id="summary"></section>
+
+    <section class="board">
+      <h2>Tasks</h2>
+      <div id="taskList" class="task-list"></div>
+    </section>
+  </section>
+
+  <section id="panel-chat" class="tab-panel hidden">
+    <div class="chat-panel">
+      <div class="chat-head">
+        <h2>Team chat</h2>
+        <button id="clearChatBtn" class="btn-del">🗑 Clear chat</button>
+      </div>
+      <div id="chatMessages" class="chat-messages"></div>
+      <form id="chatForm" class="chat-composer">
+        <select id="chatTo">
+          <option value="">everyone</option>
+        </select>
+        <input id="chatText" type="text" placeholder="Type a message for the team…" autocomplete="off" required />
+        <button type="submit">➤ Send</button>
+      </form>
+      <p class="hint">Agents can also chat via curl: <code>curl -X POST localhost:8081/api/messages -H 'X-Agent: my-agent' -d '{"text":"hello team","to":""}'</code></p>
+    </div>
+  </section>
+
+  <footer>
+    <span>Live sync — auto-refreshes every 3s.</span>
+    <button id="refreshBtn">↻ Refresh now</button>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

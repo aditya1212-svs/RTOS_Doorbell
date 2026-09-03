@@ -1,10 +1,13 @@
 package com.aditya.rtos_doorbell.controller;
 
 import com.aditya.rtos_doorbell.dto.DeviceEventRequest;
+import com.aditya.rtos_doorbell.dto.VisitorEventResponse;
 import com.aditya.rtos_doorbell.service.VisitorEventService;
 import jakarta.validation.Valid;
 import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/event")
@@ -15,5 +18,10 @@ public class EventController {
     public ResponseEntity<Void> accept(@Valid @RequestBody DeviceEventRequest request) {
         service.accept(request);
         return ResponseEntity.accepted().build();
+    }
+
+    @GetMapping
+    public List<VisitorEventResponse> history(@RequestParam(defaultValue = "30") int limit) {
+        return service.list(limit);
     }
 }
